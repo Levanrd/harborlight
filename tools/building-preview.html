@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harborlight · Architectural families</title>
+<style>body{margin:0;background:#e8f0f5;color:#28485d;font:13px system-ui}header{padding:22px 28px 6px}h1{margin:5px 0;font-size:27px}header p{color:#6b8190}#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:12px 28px 28px}article{background:#f8fbfd;border:1px solid #cddfe9;border-radius:12px;overflow:hidden}article .view{height:205px}article footer{padding:12px 16px;border-top:1px solid #e2eaf0}article small{display:block;color:#638196;margin-bottom:5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase}canvas{position:fixed;inset:0;pointer-events:none}header span{font-size:11px;letter-spacing:.13em;color:#2782ad}@media(max-width:800px){#grid{grid-template-columns:repeat(2,1fr)}}</style>
+<header><span>HARBORLIGHT / ARCHITECTURE</span><h1>A skyline with character.</h1><p>Actual city building models · existing lots receive their family automatically · local preview, no saved-city access.</p></header><div id="grid"></div>
+<script type="module">
+import * as THREE from 'three';import {drawDetailedZone,createFacade,createSurface} from '/src/cityVisuals.ts';import {buildingFamily,buildingGroups,buildingVariant} from '/src/buildingFamilies.ts';
+if(!import.meta.env.DEV)throw Error('Development preview only');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.appendChild(renderer.domElement);
+const cube=new THREE.BoxGeometry(),cylinder=new THREE.CylinderGeometry(1,1,1,24),shape=new THREE.Shape();shape.moveTo(-.5,0);shape.lineTo(.5,0);shape.lineTo(0,1);shape.closePath();const roof=new THREE.ExtrudeGeometry(shape,{depth:1,bevelEnabled:false});roof.translate(0,0,-.5);
+const facade=createFacade(),stucco=createSurface('stucco'),mats=new Map();
+const material=color=>{if(!mats.has(color))mats.set(color,new THREE.MeshStandardMaterial({color,roughness:.75,map:['#427795','#527e97','#314d68'].includes(color)?facade:stucco}));return mats.get(color);};
+const kit={roof,cylinder,material,tree:()=>{},box:(g,x,y,z,w,h,d,c)=>{const m=new THREE.Mesh(cube,material(c));m.position.set(x,y+h/2,z);m.scale.set(w,h,d);g.add(m);return m;}};
+const views=[];
+for(const [kind,level,v] of [['residential',1,0],['residential',3,2],['residential',3,3],['residential',3,5],['commercial',3,0],['commercial',3,1],['commercial',3,3],['commercial',3,4],['residential',3,0],['industrial',2,0],['industrial',2,2],['industrial',2,3]]){
+  let x=-20;while(buildingVariant({x,z:0})!==v)x++;
+  const cell={x,z:0,kind,level,age:50,occupancy:0,factoryTier:2},f=buildingFamily(cell),scene=new THREE.Scene(),group=new THREE.Group();drawDetailedZone(cell,group,kit);group.position.x=-x*8;scene.add(group);
+  scene.add(new THREE.HemisphereLight('#edf5ff','#75836b',2.5));const sun=new THREE.DirectionalLight('#fff3dc',3);sun.position.set(-10,25,15);scene.add(sun);
+  const bounds=new THREE.Box3().setFromObject(group),h=bounds.max.y,span=Math.max(12,h*1.08),camera=new THREE.OrthographicCamera(-span*.64,span*.64,span*.5,-span*.5,.1,200);camera.position.set(24,h*.5+19,29);camera.lookAt(0,h*.48,0);
+  const card=document.createElement('article');card.innerHTML=`<div class="view"></div><footer><small>${buildingGroups[f.group].name}</small><b>${f.name}</b></footer>`;document.getElementById('grid').appendChild(card);views.push({scene,camera,el:card.firstElementChild,span});
+}
+function render(){renderer.setScissorTest(false);renderer.clear();renderer.setScissorTest(true);for(const v of views){const r=v.el.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)continue;const a=r.width/r.height;v.camera.left=-v.span*a/2;v.camera.right=v.span*a/2;v.camera.updateProjectionMatrix();renderer.setViewport(r.left,innerHeight-r.bottom,r.width,r.height);renderer.setScissor(r.left,innerHeight-r.bottom,r.width,r.height);renderer.render(v.scene,v.camera);}requestAnimationFrame(render);}render();addEventListener('resize',()=>renderer.setSize(innerWidth,innerHeight));
+</script></html>

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harborlight · Architectural preview</title>
+<style>
+.study{position:absolute;top:22px;left:24px;z-index:5;padding:18px 22px;background:#f7f7efed;border:1px solid #fff9;border-radius:14px;box-shadow:0 12px 40px #173d4420;color:#234d4e;font:13px system-ui;max-width:380px}.study h1{font-size:24px;margin:5px 0 8px}.study small{letter-spacing:2px;font-size:10px}.study p{line-height:1.5;margin:8px 0 13px}.study nav{display:flex;flex-wrap:wrap;gap:6px}.study button{background:#fff9;border:1px solid #abc4bd;border-radius:6px;padding:7px 10px;color:#234d4e;cursor:pointer}.study output{display:block;margin-top:12px;font-size:11px}.graphics-control{bottom:24px!important}.study button[aria-pressed=true]{background:#235a59;color:white}
+</style></head><body><div id="root"></div><section class="study"><small>HARBORLIGHT / LOCAL ART STUDY</small><h1>A city with character.</h1><p>Procedural buildings, landscaped entrances, and an illuminated skyline. This sample city does not read or write saved games.</p><nav><button id="skyline" aria-pressed="true">Mature skyline</button><button id="homes" aria-pressed="false">Starter homes</button><button id="night" aria-pressed="false">Night lighting</button><button id="closer">Zoom closer</button><button id="wider">Zoom out</button><button id="rotate">Rotate</button></nav><output id="selection">Select a building to check its lot.</output></section>
+<script type="module">
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {World} from '/src/World.tsx';
+import {useGame} from '/src/store.ts';
+import {createCity} from '/src/simulation.ts';
+import '/src/style.css';
+if(!import.meta.env.DEV)throw new Error('The art study is available only on the local development server.');
+function sample(starter=false){
+  const city=createCity(false,'Architectural study');city.progression.xp=1000;
+  for(let x=-12;x<=8;x++)for(let z=-8;z<=8;z++){
+    const road=x%4===0||z%4===0,park=!road&&Math.abs(x*7+z*13)%13===0;
+    const kind=road?'road':park?'park':x<-8?'industrial':(x+z)%3===0?'commercial':'residential';
+    const level=starter?1:Math.abs(x)<7&&Math.abs(z)<7&&(x*z)%5!==0?3:Math.abs(x)>6?1:2;
+    city.cells[`${x},${z}`]={x,z,kind,level,age:50,occupancy:kind==='residential'?40:16,avenue:road};
+  }
+  useGame.getState().set({city,speed:0,selected:null,overlay:'none',tool:'inspect'});
+}
+sample();createRoot(document.getElementById('root')).render(React.createElement(World));
+for(const [id,starter]of [['skyline',false],['homes',true]])document.getElementById(id).onclick=()=>{sample(starter);document.getElementById('skyline').setAttribute('aria-pressed',String(!starter));document.getElementById('homes').setAttribute('aria-pressed',String(starter));};
+document.getElementById('night').onclick=()=>{const night=useGame.getState().lighting!=='night';useGame.getState().set({lighting:night?'night':'day'});document.getElementById('night').setAttribute('aria-pressed',String(night));};
+for(const [id,mode]of [['closer','in'],['wider','out'],['rotate','rotate']])document.getElementById(id).onclick=()=>window.dispatchEvent(new CustomEvent('city-camera',{detail:mode}));
+useGame.subscribe(s=>{document.getElementById('selection').textContent=s.selected?`${s.selected.kind} · level ${s.selected.level} · lot ${s.selected.x}, ${s.selected.z}`:'Select a building to check its lot.';});
+</script></body></html>

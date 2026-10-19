@@ -1,0 +1,20 @@
+node_modules/
+dist/
+.sites-local/
+*.tar.gz
+.npm-cache/
+
+# Local tooling, credentials, and generated build metadata
+.openai/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+*.log
+
+# Disposable visual QA output and simulation snapshots (keep harness sources)
+tools/*.png
+tools/*.jpg
+tools/*.txt
+tools/*.json
+!tools/regional-fixture.json

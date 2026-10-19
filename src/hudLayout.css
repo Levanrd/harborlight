@@ -1,0 +1,17 @@
+/* One set of measured safe areas for every dashboard panel. */
+.city-app{--hud-top:112px;--inspector-bottom:130px;--overview-bottom:280px;--advisor-bottom:370px;--inspector-left:282px}
+.city-app .selection{top:var(--hud-top);bottom:var(--inspector-bottom);left:var(--inspector-left);max-height:none;height:fit-content;max-height:calc(100dvh - var(--hud-top) - var(--inspector-bottom));overflow:auto;scrollbar-width:thin;overscroll-behavior:contain}
+.city-app .left-panel{top:var(--hud-top);max-height:calc(100dvh - var(--hud-top) - var(--overview-bottom));overflow:auto;overscroll-behavior:contain}
+.city-app .guide{top:var(--hud-top);max-height:calc(100dvh - var(--hud-top) - var(--advisor-bottom));overflow:auto;scrollbar-width:thin;overscroll-behavior:contain}
+.city-app .graphics-control{bottom:var(--graphics-bottom,228px)}
+.city-app .lighting-control{bottom:var(--lighting-bottom,270px)}
+.city-app .climate-control{bottom:var(--climate-bottom,315px)}
+.city-app .toolbar{overflow-x:auto;scrollbar-width:thin;flex-shrink:1}.city-app .toolbar>button{flex-shrink:0}
+.simulation-status{font-size:10px;font-weight:700;color:#28779a;margin-bottom:8px}
+@media(min-width:1100px){.city-app .toolbar-area{max-width:calc(100vw - 584px)}.city-app .toolbar{max-width:100%}.city-app .tool-card{max-width:100%}}
+@media(max-width:1099px){.city-app .toolbar-area{max-width:calc(100vw - 24px)}}
+@media(max-width:650px){.city-app .selection{left:10px;width:min(280px,calc(100vw - 70px));max-height:calc(100dvh - var(--hud-top) - var(--advisor-bottom))}}
+
+.time-panel>div:nth-child(2){display:flex;align-items:center;gap:8px}
+
+@media(max-width:1099px){.city-app .bottom-right{bottom:var(--inspector-bottom)}}

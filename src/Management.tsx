@@ -1,0 +1,40 @@
+import {decodeClock} from './gameClock';
+import {archivedCities,storageSummary} from './cityStorage';
+import {buildingLock} from './progression';
+import {decodeTraffic} from './traffic';
+import {useState,useEffect} from 'react';
+import {useGame} from './store';
+import {metrics,resources,services,labels,price,upkeep,serviceRange,decodeCity,type Kind} from './simulation';
+
+export const facilityDescriptions:Partial<Record<Kind,string>>={
+  police:'Two patrol cars visit neighborhoods via connected roads. Completed visits reduce crime and improve safety. Needs all utilities.',
+  landfill:'Two garbage trucks and 2,000 units of permanent storage. Needs utilities and adds local pollution.',
+  recycling:'Three garbage trucks and a 200-unit buffer. Recycles 12 units per day with utilities and lower local pollution.',
+  power:'900 power units for this road network. Industry uses twice as much power as homes.',
+  water:'750 water units for this road network. Industry uses 1.5 units per job.',
+  sewage:'Treats 750 sewage units. Place away from homes: treatment produces local pollution.',
+  school:'Serves up to 12 road sections from its entrance. Raises land value and unlocks level 3 homes.',
+  clinic:'Serves up to 16 road sections. Improves health and dispatches one ambulance. Needs a supplied road connection.',
+  fire:'Protects up to 18 road sections. Reduces fire risk and dispatches one fire truck. Needs a supplied road connection.',
+};
+
+export function Management({choose}:{choose:(kind:Kind)=>void}) {
+  const city=useGame(s=>s.city),m=metrics(city);
+  return <><h2>A town that takes care.</h2><p>Utilities stay within connected road networks. Public services need all three utilities and follow roads from their entrance.</p>
+    <div className="management-grid">{resources.map(r=><button className="management-card" key={r} disabled={!!buildingLock(city,r)} onClick={()=>choose(r)}><span>{labels[r]}<small>{buildingLock(city,r)}</small></span><strong>{Math.ceil(m.resources.usage[r])} <small>/ {m.resources.capacity[r]}</small></strong><div className="meter"><i style={{width:Math.min(100,m.resources.usage[r]/Math.max(1,m.resources.capacity[r])*100)+'%',background:'#83ad99'}}/></div><small>Build ${price[r].toLocaleString()} · ${upkeep[r]}/mo</small></button>)}</div>
+    <h3>Neighborhood services</h3><div className="management-grid">{services.map(s=><button className="management-card" key={s} disabled={!!buildingLock(city,s)} onClick={()=>choose(s)}><span>{labels[s]}<small>{buildingLock(city,s)}</small></span><strong>{m.coverage[s]}<small>% of residents</small></strong><small>{serviceRange[s]} road sections · ${upkeep[s]}/mo</small></button>)}</div>
+    <div className="wellbeing"><div><b>{m.health}%</b><span>Health index</span></div><div><b>{m.fireRisk}%</b><span>Fire risk</span></div><div><b>{m.pollution}%</b><span>Residential pollution</span></div></div>
+    <p className="fine">Health and fire risk influence incident frequency. Clinics and fire stations each operate one response vehicle. Open Traffic & dispatch to follow calls and run safe drills.</p>
+    <h3>Parks & recreation</h3><p>{Math.round(m.recreation.coverage)}% of residents in reach · +{m.recreation.happinessBonus.toFixed(1)} happiness · ${m.recreation.upkeep}/month. Open Parks in the toolbar to compare facilities and find homes that need recreation.</p><div className="dispatch-actions"><button disabled={!!buildingLock(city,'playground')} onClick={()=>choose('playground')}>Build playground · $1,800 {buildingLock(city,'playground')}</button><button disabled={!!buildingLock(city,'sports')} onClick={()=>choose('sports')}>Build sports field · $4,200 {buildingLock(city,'sports')}</button><button disabled={!!buildingLock(city,'largepark')} onClick={()=>choose('largepark')}>Build large park · $6,500 {buildingLock(city,'largepark')}</button></div><h3>Police & safety</h3><p>{Math.round(m.crime.safety)}% residential safety · {Math.round(m.crime.coverage)}% recently patrolled · −{m.crime.happinessPenalty.toFixed(1)} happiness from crime. Use the Police toolbar button to follow patrols and find neighborhoods that need attention.</p><div className="dispatch-actions"><button disabled={!!buildingLock(city,'police')} onClick={()=>choose('police')}>Build police station · $5,200 {buildingLock(city,'police')}</button></div><h3>Garbage & recycling</h3><p>{m.waste.waiting.toFixed(1)} units awaiting pickup · {m.waste.overflow} overflowing lots · {m.waste.cleanliness}% residential cleanliness. Use the Garbage toolbar button for live fleets and storage.</p><div className="dispatch-actions"><button disabled={!!buildingLock(city,'landfill')} onClick={()=>choose('landfill')}>Build landfill · $4,500 {buildingLock(city,'landfill')}</button><button disabled={!!buildingLock(city,'recycling')} onClick={()=>choose('recycling')}>Build recycling center · $8,000 {buildingLock(city,'recycling')}</button></div>
+    <h3>Road networks</h3><div className="network-table"><table><thead><tr><th>Network</th><th>Power</th><th>Water</th><th>Sewage</th></tr></thead><tbody>{m.networks.map(n=><tr key={n.id}><td>#{n.id+1} · {n.roads.size} sections</td>{resources.map(r=><td className={n.used[r]>n.capacity[r]?'negative':''} key={r}>{Math.ceil(n.used[r])} / {n.capacity[r]}</td>)}</tr>)}</tbody></table>{!m.networks.length&&<p>Lay your first road to create a network.</p>}</div>
+    <h3>Where to focus</h3>{m.alerts.length?m.alerts.map((a,i)=><button className="advice-row" key={i} onClick={()=>choose(a.tool)}>{a.text}<span>Build →</span></button>):<p>Your current neighborhoods have room to grow.</p>}
+  </>;
+}
+
+export function CityBackups() {
+  const [result,setResult]=useState(''),[summary,setSummary]=useState<{active:number;archived:number}>();useEffect(()=>{storageSummary().then(setSummary).catch(()=>{});},[]);
+  function exportCity(){const state=useGame.getState(),city={...state.city,traffic:state.traffic,clock:state.clock},url=URL.createObjectURL(new Blob([JSON.stringify(city,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='harborlight-city.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  async function exportArchives(){try{const data=await archivedCities(),url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='harborlight-retired-cities.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setResult(data.length+' archived states exported.');}catch{setResult('Could not read archived backups.');}}
+  async function importCity(file:File|undefined){if(!file)return;try{if(file.size>2_000_000)throw new Error('City file is too large.');const raw=JSON.parse(await file.text()),city=decodeCity(raw),traffic=decodeTraffic(raw.traffic);const s=useGame.getState();s.set({city,traffic,clock:decodeClock(raw.clock,traffic.time),speed:0,history:[],selected:null,draft:[],anchors:[],tool:'inspect',revision:s.revision+1,notice:'Backup imported. Your city is paused and ready.'});setResult('Backup imported. Close this menu to explore your paused city.');}catch(error){setResult(error instanceof Error?error.message:'Could not read that city backup.');useGame.getState().set({notice:error instanceof Error?error.message:'Could not read that city backup.'});}}
+  return <div className="backup-controls">{summary&&<p>{summary.active} active city · {summary.archived} archived backups</p>}{result&&<p role="status" className="backup-result">{result}</p>}<button className="secondary" onClick={exportCity}>Export city backup (.json)</button><button className="secondary" onClick={exportArchives}>Export archived cities (.json)</button><label className="import-label">Import city backup<input aria-label="Import city backup" type="file" accept="application/json,.json" onChange={e=>{importCity(e.target.files?.[0]);e.target.value='';}}/></label><p className="fine">Import replaces the current town. Export first to keep a copy. Older Harborlight saves and utility hubs remain compatible.</p></div>;
+}

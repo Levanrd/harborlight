@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harborlight · Vehicle detail study</title>
+<style>body{margin:0;overflow:hidden;background:#c1cbc8;font:14px system-ui;color:#243e3b}canvas{display:block}header{position:absolute;top:20px;left:24px;padding:16px 20px;border-radius:12px;background:#f4f5eee8}h1{font-size:24px;margin:4px 0 8px}p{margin:5px 0 12px;font-size:12px}small{letter-spacing:2px;font-size:10px}nav{display:flex;gap:6px;flex-wrap:wrap;max-width:590px}button{padding:7px 10px;border:1px solid #a3b7ae;border-radius:6px;color:#294940;background:#fff;cursor:pointer}#labels{position:absolute;bottom:18px;left:24px;background:#f4f5eee8;border-radius:8px;padding:10px 14px;font-size:12px}</style>
+</head><body><header><small>HARBORLIGHT / LOCAL VEHICLE STUDY</small><h1>Curves, chrome & moving wheels.</h1><p>The same vehicle models used in your city. Drag to orbit; scroll to zoom. No saved games are read or written.</p><nav><button id="all">Full fleet</button><button id="car">Car close-up</button><button id="services">Service vehicles</button><button id="night">Day / night</button><button id="wheels">Spin wheels</button></nav></header><div id="labels">Front: compact · sedan · crossover &nbsp; / &nbsp; Middle: estate · police · ambulance &nbsp; / &nbsp; Back: fire engine · refuse truck · bus</div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {VehicleModels} from '/src/vehicleModels.ts';
+import {createSky} from '/src/cityVisuals.ts';
+if(!import.meta.env.DEV)throw Error('Development preview only.');
+const scene=new THREE.Scene();scene.background=new THREE.Color('#aebeba');scene.environment=createSky();scene.environmentIntensity=.6;
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,200);camera.position.set(13,13,19);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;document.body.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.3,0);controls.enableDamping=true;
+const sky=new THREE.HemisphereLight('#deecf5','#687366',2);scene.add(sky);const sun=new THREE.DirectionalLight('#fff0d3',3);sun.position.set(-8,15,9);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-15,right:15,top:15,bottom:-15});sun.shadow.normalBias=.015;scene.add(sun);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:'#64716e',roughness:.95}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+const kit=new VehicleModels(),cars=[];const specs=[['car',0],['car',1],['car',3],['car',2],['police',8],['ambulance',9],['firetruck',10],['garbage',11],['bus',12]];
+specs.forEach(([kind,id],i)=>{const car=kit.create(kind,id,'#397e83');car.position.set((i%3-1)*4,.2,5-Math.floor(i/3)*5);scene.add(car);cars.push(car);});
+for(let x=-6;x<=6;x+=4){const stripe=new THREE.Mesh(new THREE.PlaneGeometry(.06,15),new THREE.MeshBasicMaterial({color:'#c3c4ae'}));stripe.rotation.x=-Math.PI/2;stripe.position.set(x,.005,0);scene.add(stripe);}
+let dark=false,spin=false,last=0;
+document.getElementById('all').onclick=()=>{camera.position.set(13,13,19);controls.target.set(0,.3,0);};
+document.getElementById('car').onclick=()=>{camera.position.set(3.3,2.6,10);controls.target.set(0,.7,5);};
+document.getElementById('services').onclick=()=>{camera.position.set(9,5,-.8);controls.target.set(0,.6,-5);};
+document.getElementById('night').onclick=()=>{dark=!dark;sky.intensity=dark?.45:2;sun.intensity=dark?.15:3;scene.background.set(dark?'#172c40':'#aebeba');};
+document.getElementById('wheels').onclick=()=>{spin=!spin;};
+function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-last)/1000);last=now;for(const car of cars){if(spin)car.userData.wheels.forEach(w=>w.rotation.x+=dt*4);car.userData.brakes.forEach(w=>w.visible=false);car.userData.indicators.forEach(w=>w.visible=false);car.userData.lights?.forEach((w,i)=>w.visible=(Math.floor(now/150)+i)%2===0);}controls.update();renderer.render(scene,camera);}requestAnimationFrame(animate);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+</script></body></html>

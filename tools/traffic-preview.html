@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Harborlight · Turns and bus stops</title><style>header{position:fixed;top:16px;left:20px;right:20px;z-index:5;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#f4f6eeed;border-radius:12px;padding:16px;color:#2b4941;font:13px system-ui}button{padding:8px 12px;background:white;border:1px solid #9cad9f;border-radius:6px;color:#2b4941}p{width:100%;margin:0}output{font-variant-numeric:tabular-nums}</style></head><body><div id="root"></div><header><b>HARBORLIGHT / ROAD CHECK</b><button id="run">Run</button><button id="step">Step 0.25 s</button><button id="reset">Replay arrival</button><button id="near">Terminal close-up</button><button id="junction">Junction stop</button><output id="stats"></output><p>Real traffic and city rendering · disposable local test · no saved cities changed.</p></header><script type="module">
+import React from 'react';import {createRoot} from 'react-dom/client';import {World} from '/src/World.tsx';import {useGame} from '/src/store.ts';import {createCity} from '/src/simulation.ts';import {advanceTraffic,emptyTraffic} from '/src/traffic.ts';import {vehicleRoadPose} from '/src/vehiclePose.ts';import '/src/style.css';
+if(!import.meta.env.DEV)throw Error('Local development only');
+const city=createCity(false,'Road check');city.cells={};
+for(let z=-4;z<=2;z++)city.cells[`0,${z}`]={x:0,z,kind:'road',level:1,age:40,occupancy:0};
+for(let x=-3;x<=3;x++)city.cells[`${x},0`]={x,z:0,kind:'road',level:1,age:40,occupancy:0};
+for(const x of [-1,1])for(const z of [-3,-2,1,2])city.cells[`${x},${z}`]={x,z,kind:x<0?'residential':'commercial',level:1,age:40,occupancy:0};
+const path=Array.from({length:7},(_,i)=>`0,${i-4}`);city.transit={nextId:2,stops:[{key:'0,-4',name:'South'},{key:'0,0',name:'Crossroads'},{key:'0,2',name:'North'}],routes:[{id:1,name:'Local',color:'#46a9ae',path,stops:['0,-4','0,0','0,2'],buses:1,enabled:true}]};
+let running=false;
+function show(){const s=useGame.getState().traffic,v=s.vehicles[0],p=vehicleRoadPose(city,v);document.getElementById('stats').textContent=`${s.time.toFixed(2)} s · ${v.uTurn?'U-turn '+Math.round(v.uTurn.progress*100)+'%':s.time<(v.serviceUntil||0)?'Boarding':'Driving'} · heading ${Math.round(p.heading*180/Math.PI)}°`;}
+function reset(){running=false;document.getElementById('run').textContent='Run';const traffic={...emptyTraffic(),nextId:2,vehicles:[{id:1,kind:'bus',route:1,path:[...path],index:6,progress:0,waiting:0,stage:'outbound'}]};useGame.getState().set({city,traffic,speed:0,lighting:'day'});show();}
+function step(dt){const s=useGame.getState();s.set({traffic:advanceTraffic(city,s.traffic,dt,{operational:new Set(),health:100,fireRisk:0,autoIncidents:false}).state});show();}
+reset();createRoot(document.getElementById('root')).render(React.createElement(World));
+setInterval(()=>{if(running)step(.05)},50);
+document.getElementById('run').onclick=()=>{running=!running;document.getElementById('run').textContent=running?'Pause':'Run'};
+document.getElementById('step').onclick=()=>step(.25);document.getElementById('reset').onclick=reset;
+const focus=z=>window.dispatchEvent(new CustomEvent('city-camera',{detail:{street:{x:0,z}}}));document.getElementById('near').onclick=()=>focus(16);document.getElementById('junction').onclick=()=>focus(0);
+</script></body></html>
