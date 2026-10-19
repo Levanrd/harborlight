@@ -431,3 +431,19 @@ Verification: 183 tests passed serially, TypeScript and Vite build passed (exist
 Local previews: /tools/scale-preview.html compares actual model proportions without loading saves; /tools/street-life-preview.html exercises the actual walking/traffic systems in a disposable neighborhood without running its economy. Browser views showed populated streets and no console errors. Screenshots: tools/proportions-comparison.png and tools/proportions-street.png.
 
 Remaining realism limits: these are procedural stylized models. Airports, ports, sports facilities and district capacity remain compressed gameplay representations; the road graph still uses right-angle cells and kinematic turns. Fully physical large facilities and steering would require larger multi-parcel assets, a larger map, and a lane/turning-radius simulation.
+
+## Automated checks
+
+[Harborlight CI](.github/workflows/ci.yml) runs on pull requests, pushes to main,
+and manual dispatch. Three independent checks use Node.js 22 on Ubuntu 24.04:
+
+- **Tests:** `npm run test:ci` runs every test serially, including the isolated IndexedDB regressions.
+- **TypeScript:** `npm run typecheck` checks source without emitting files.
+- **Production build:** `npm run build` type-checks and builds the production bundle.
+
+Each job installs package-lock.json with `npm ci`; npm downloads are cached by
+lockfile. No repository secrets, browser saves or deployed environment are needed.
+To reproduce the checks locally, run `npm ci` followed by the three commands above.
+The existing large-bundle warning is advisory. CI does not deploy the game.
+Branch protection is separate: configure these check names as required in GitHub
+if merges should be blocked until they pass.
