@@ -2,7 +2,7 @@ import {waterEdge} from './grid';
 export type LightingMode='auto'|'day'|'dusk'|'night';
 export type Quality='low'|'medium'|'high'|'ultra';
 export const graphicsPresets={low:{pixelRatio:1,shadow:0},medium:{pixelRatio:1.25,shadow:1024},high:{pixelRatio:1.75,shadow:3072},ultra:{pixelRatio:2,shadow:4096}} as const;
-export const cameraLimits={minDistance:12,maxDistance:490,groundClearance:3} as const;
+export const cameraLimits={minDistance:2,maxDistance:490,groundClearance:1.5} as const;
 const smooth=(a:number,b:number,x:number)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 /** Continuous value noise avoids visible repeated stripes across the landscape. */
 export function landNoise(x:number,z:number){
@@ -33,4 +33,14 @@ export function boundedCamera(position:{x:number;y:number;z:number},target:{x:nu
   const x=Math.max(-156,Math.min(132,target.x)),z=Math.max(-156,Math.min(156,target.z));
   const px=position.x+x-target.x,pz=position.z+z-target.z;
   return {target:{x,y:Math.max(0,target.y),z},position:{x:px,y:Math.max(position.y,terrainHeight(px,pz)+cameraLimits.groundClearance,cameraLimits.groundClearance),z:pz}};
+}
+
+type CameraPoint={x:number;y:number;z:number};
+/** Recenter on an actual surface so close zoom inspects the clicked part of a
+ * large facility instead of continuing toward its distant footprint center. */
+export function inspectionCamera(position:CameraPoint,target:CameraPoint,point:CameraPoint){
+  let dx=position.x-target.x,dy=position.y-target.y,dz=position.z-target.z;
+  let length=Math.hypot(dx,dy,dz);if(length<.001){dx=1;dy=1;dz=1;length=Math.sqrt(3);}
+  const distance=Math.max(cameraLimits.minDistance,Math.min(12,length*.45));
+  return boundedCamera({x:point.x+dx/length*distance,y:point.y+dy/length*distance,z:point.z+dz/length*distance},point);
 }

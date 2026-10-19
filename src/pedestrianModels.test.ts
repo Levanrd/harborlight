@@ -34,7 +34,7 @@ test('a maximum 270-person crowd fits the shared buffers without dropping body p
  const traffic=emptyTraffic(),foot=emptyFootTraffic(),meshes=scene.children as THREE.InstancedMesh[],totals=meshes.map(()=>0);
  for(let id=1;id<=270;id++){models.update(city,{...foot,agents:[walker(id)]},traffic,.1,false);meshes.forEach((m,i)=>totals[i]+=m.count);}
  models.update(city,{...foot,agents:Array.from({length:270},(_,i)=>walker(i+1))},traffic,.1,false);
- assert.equal(meshes.length,5,'crowd uses a fixed number of draw batches');
+ assert.ok(meshes.length<=16,'anatomical geometry uses a fixed draw-call budget independent of crowd size');
  meshes.forEach((m,i)=>{assert.equal(m.count,totals[i],m.name);assert.ok(m.count<=m.instanceMatrix.count);for(const n of m.instanceMatrix.array.slice(0,m.count*16))assert.ok(Number.isFinite(n));});
  models.dispose();
 });

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {atmosphereAt,boundedCamera,cameraLimits,terrainHeight,terrainTint} from './environment';
+import {atmosphereAt,boundedCamera,cameraLimits,terrainHeight,terrainTint,inspectionCamera} from './environment';
 import {validLand} from './grid';
 
 test('new landscape keeps every existing buildable parcel flat and finite',()=>{
@@ -28,6 +28,18 @@ test('airport close inspection is allowed while the camera stays above ground',(
   const target={x:-116,y:0,z:-132};
   const p=boundedCamera({x:-110,y:4,z:-123},target);
   assert.deepEqual(p.position,{x:-110,y:4,z:-123});
-  assert.equal(cameraLimits.minDistance,12);
+  assert.ok(cameraLimits.minDistance<=2,'allow a three-metre inspection distance');
   const low=boundedCamera({x:-116,y:.5,z:-132},target);assert.equal(low.position.y,cameraLimits.groundClearance);
+});
+
+test('soccer and airport surfaces can be inspected below the former zoom and altitude limits',()=>{
+  for(const point of [{x:-128,y:.56,z:-84},{x:-116,y:.55,z:-132},{x:-112,y:5,z:-136}]){
+    const target={x:point.x,y:0,z:point.z};
+    const result=inspectionCamera({x:point.x+2,y:point.y+2,z:point.z+2},target,point);
+    assert.deepEqual(result.target,point);
+    assert.ok(Math.hypot(result.position.x-point.x,result.position.y-point.y,result.position.z-point.z)<12,'close inspection is not stopped at the old 18-metre limit');
+    assert.ok(result.position.y>=terrainHeight(result.position.x,result.position.z)+cameraLimits.groundClearance);
+  }
+  const near=boundedCamera({x:-128,y:1.6,z:-83},{x:-128,y:.56,z:-84});
+  assert.equal(near.position.y,1.6,'flat-ground close views no longer get lifted to 4.5 metres');
 });

@@ -32,7 +32,6 @@ export function drawRecreation(c:Cell,g:THREE.Group,mesh:Box,tree:Tree){
       for(const dz of [-2.8,2.8])mesh(g,cx+dx-Math.sign(dx)*1.8,.53,cz+dz,3.5,.04,.1,'#f0eed7');mesh(g,cx+dx-Math.sign(dx)*3.5,.53,cz,.1,.04,5.7,'#f0eed7');
     }
 
-    for(const dx of [-11.4,11.4]){mesh(g,cx+dx,.4,cz-6.7,.15,5,.15,'#697e76');mesh(g,cx+dx,5.4,cz-6.7,1,.35,.45,'#f1ead1');}
   }else if(c.kind==='largepark'){
     const cx=x+8,cz=z+8;
     mesh(g,cx,.3,cz,23.3,.15,23.3,'#99b57c');

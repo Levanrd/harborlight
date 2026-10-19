@@ -3,14 +3,16 @@ import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js'
 import type {Cell} from './simulation';
 import type {Quality} from './environment';
 import {signalAspect} from './traffic';
+import type {LocalLight} from './facilityLighting';
 
 const directions=[[-1,0],[1,0],[0,-1],[0,1]] as const;
 /** Posts stay on the sidewalk; only overhead arms extend over the carriageway. */
 export function streetLampSites(c:Cell,links:boolean[]){
   const count=links.filter(Boolean).length;
-  if(count>=3||!count||Math.abs(c.x+c.z)%3!==0)return [];
+  if(count>=3)return [];
   const ew=links[0]&&links[1],ns=links[2]&&links[3];
-  if(!ew&&!ns)return [];
+  if(!ew&&!ns){const edge=c.avenue?3.78:3.58,sx=links[0]?1:-1,sz=links[2]?1:-1;return [{x:c.x*8+sx*edge,z:c.z*8+sz*edge,dx:-sx,dz:-sz}];}
+  if(Math.abs(c.x+c.z)%3!==0)return [];
   const side=(Math.floor((c.x+c.z)/3)%2===0?1:-1),edge=c.avenue?3.78:3.58;
   return (c.avenue?[side,-side]:[side]).map(s=>({x:c.x*8+(ns?s*edge:0),z:c.z*8+(ew?s*edge:0),dx:ns?-s:0,dz:ew?-s:0}));
 }
@@ -37,7 +39,8 @@ export class StreetFurniture {
   private poolMat:THREE.MeshBasicMaterial;
   private poolTexture:THREE.CanvasTexture;
   private signals:{key:string;axis:'ew'|'ns';matrix:THREE.Matrix4}[]=[];
-  private lights:{position:THREE.Vector3;target:THREE.Vector3}[]=[];
+  private lights:LocalLight[]=[];
+  private facilityLights:LocalLight[]=[];
   private spots:THREE.SpotLight[]=[];
   private lit:THREE.InstancedMesh;
   private lastPhase='';private lightLimit=4;private lightTick=0;
@@ -75,6 +78,7 @@ export class StreetFurniture {
     const pool=new THREE.Mesh(this.plane,this.poolMat);pool.position.copy(target);pool.position.y=.287;pool.scale.set(6.4,1,10);g.getWorldQuaternion(pool.quaternion);poolParent.add(pool);
   }
   beginRebuild(){this.signals=[];this.lights=[];this.lastPhase='';this.lightTick=0;}
+  setFacilityLights(lights:LocalLight[]){this.facilityLights=lights;this.lightTick=0;}
   draw(c:Cell,links:boolean[],parent:THREE.Group){
     for(const site of streetLampSites(c,links)){
       const g=new THREE.Group();g.position.set(site.x,.45,site.z);g.rotation.y=Math.atan2(site.dx,site.dz);parent.add(g);this.pole(g,5.8);this.luminaire(g,parent);
@@ -106,10 +110,10 @@ export class StreetFurniture {
       });this.lit.instanceMatrix.needsUpdate=true;if(this.lit.instanceColor)this.lit.instanceColor.needsUpdate=true;
     }
     if(this.lightTick++%20===0){
-      const nearest=[...this.lights].sort((a,b)=>camera.position.distanceToSquared(a.position)-camera.position.distanceToSquared(b.position));
-      this.spots.forEach((spot,i)=>{const source=nearest[i];spot.userData.active=!!source&&i<this.lightLimit;if(source){spot.position.copy(source.position);spot.target.position.copy(source.target);}});
+      const nearest=[...this.lights,...this.facilityLights].sort((a,b)=>camera.position.distanceToSquared(a.position)-camera.position.distanceToSquared(b.position));
+      this.spots.forEach((spot,i)=>{const source=nearest[i];spot.userData.active=!!source&&i<this.lightLimit;if(source){spot.position.copy(source.position);spot.target.position.copy(source.target);spot.color.set(source.color||'#ffe7c1');spot.distance=source.distance||16;spot.angle=source.angle||Math.PI*.29;spot.userData.strength=source.intensity||38;}});
     }
-    for(const spot of this.spots)spot.intensity=spot.userData.active?night*38:0;
+    for(const spot of this.spots)spot.intensity=spot.userData.active?night*spot.userData.strength:0;
   }
   dispose(){
     this.scene.remove(this.lit);this.lit.dispose();

@@ -3,6 +3,8 @@ import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js'
 import {VehicleBatches,buildingVariant,type VisualKit} from './cityVisuals';
 import {createCanopy} from './naturalVisuals';
 import type {Cell} from './simulation';
+import {RecreationPeople,type LeisureActivity,type HumanOptions} from './recreationPeople';
+import {SoccerMatch} from './soccerMatch';
 
 /** Shared architectural and landscape parts. All static detail is instance-batched. */
 export class PlaceVisuals{
@@ -21,7 +23,18 @@ export class PlaceVisuals{
   private batch=new VehicleBatches(this.rendered);
   private motions:((time:number)=>void)[]=[];
   private lastTime:number|undefined;
-  constructor(private scene:THREE.Scene,private kit:VisualKit){scene.add(this.rendered);}
+  private matches:{match:SoccerMatch;x:number;z:number}[]=[];
+  private people:RecreationPeople;
+  private poolWater=new THREE.MeshPhysicalMaterial({color:'#72afbb',roughness:.24,metalness:.03,transparent:true,opacity:.7,depthWrite:false});
+  constructor(private scene:THREE.Scene,private kit:VisualKit){this.people=new RecreationPeople(kit.material);scene.add(this.rendered);}
+  private neighbor(id:number,activity:LeisureActivity,x:number,y:number,z:number,heading=0,options:HumanOptions={}){
+    const person=this.people.create(id,activity,options);person.root.position.set(x,y,z);person.root.rotation.y=heading;this.sources.add(person.root);this.motions.push(t=>person.pose(t));return person;
+  }
+  private pool(g:THREE.Group,x:number,z:number,w:number,d:number,surface=.83){
+    this.round(g,x,.55,z,w,.07,d,'#b3d1cf');
+    for(const side of [-1,1]){this.round(g,x+side*(w/2+.1),.55,z,.2,surface-.53,d+.4,'#c8c9bf');this.round(g,x,.55,z+side*(d/2+.1),w,surface-.53,.2,'#c8c9bf');}
+    const water=this.round(g,x,surface-.025,z,w,.025,d,'#6f9698');water.material=this.poolWater;water.castShadow=false;
+  }
   private part(g:THREE.Object3D,geo:THREE.BufferGeometry,x:number,y:number,z:number,w:number,h:number,d:number,color:string){const m=new THREE.Mesh(geo,this.kit.material(color));m.position.set(x,y,z);m.scale.set(w,h,d);m.castShadow=Math.max(w,h,d)>.35;m.receiveShadow=true;g.add(m);return m;}
   private round(g:THREE.Object3D,x:number,y:number,z:number,w:number,h:number,d:number,color:string){return this.part(g,this.rounded,x,y+h/2,z,w,h,d,color);}
   private drum(g:THREE.Object3D,x:number,y:number,z:number,r:number,h:number,color:string){return this.part(g,this.cylinder,x,y+h/2,z,r,h,r,color);}
@@ -29,7 +42,7 @@ export class PlaceVisuals{
   private rod(g:THREE.Object3D,a:THREE.Vector3,b:THREE.Vector3,r:number,color:string){const delta=b.clone().sub(a),m=this.part(g,this.cylinder,(a.x+b.x)/2,(a.y+b.y)/2,(a.z+b.z)/2,r,delta.length(),r,color);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());return m;}
   private shrub(g:THREE.Object3D,x:number,z:number,s=.45){this.part(g,this.crown,x,.45+s*.55,z,s,s*.65,s*.82,'#517d48');if(s>.3)this.part(g,this.crown,x+s*.4,.5+s*.6,z-.1,s*.6,s*.55,s*.6,'#6a9b62');}
   private bed(g:THREE.Object3D,x:number,z:number,r:number,formal=true){if(formal){this.drum(g,x,.4,z,r,.15,'#806e51');this.hoop(g,x,.58,z,r,'#929d9e');}else this.part(g,this.crown,x,.44,z,r,.06,r*.75,'#806e51');const count=r<.7?3:7;for(let i=0;i<count;i++){const a=i*2.4,rr=Math.sqrt((i+.5)/count)*r*.8;this.shrub(g,x+Math.sin(a)*rr,z+Math.cos(a)*rr,.22);for(let j=0;j<2;j++)this.part(g,this.flower,x+Math.sin(a)*rr+j*.07,.85,z+Math.cos(a)*rr,.08,.06,.08,i%2?'#c58c8d':'#dfb56d');}}
-  private bench(g:THREE.Object3D,x:number,z:number,angle=0){const group=new THREE.Group();group.position.set(x,0,z);group.rotation.y=angle;group.scale.set(.68,.78,.68);group.position.y=.4*(1-.78);g.add(group);for(let i=0;i<4;i++){this.round(group,0,.72,-.24+i*.16,1.9,.07,.12,'#927b68');this.round(group,0,.94+i*.14,-.34,1.9,.09,.065,'#927b68');}for(const side of [-1,1]){this.rod(group,new THREE.Vector3(side*.7,.4,-.25),new THREE.Vector3(side*.7,.75,.24),.045,'#425563');this.rod(group,new THREE.Vector3(side*.7,.4,.25),new THREE.Vector3(side*.7,1.4,-.34),.045,'#425563');}}
+  private bench(g:THREE.Object3D,x:number,z:number,angle=0,ground=.43){const group=new THREE.Group();group.position.set(x,0,z);group.rotation.y=angle;group.scale.set(.68,.78,.68);group.position.y=.4*(1-.78)+ground-.43;g.add(group);for(let i=0;i<4;i++){this.round(group,0,.72,-.24+i*.16,1.9,.07,.12,'#927b68');this.round(group,0,.94+i*.14,-.34,1.9,.09,.065,'#927b68');}for(const side of [-1,1]){this.rod(group,new THREE.Vector3(side*.7,.4,-.25),new THREE.Vector3(side*.7,.75,.24),.045,'#425563');this.rod(group,new THREE.Vector3(side*.7,.4,.25),new THREE.Vector3(side*.7,1.4,-.34),.045,'#425563');}}
   private path(g:THREE.Object3D,points:THREE.Vector3[],width:number){const curve=new THREE.CatmullRomCurve3(points);let a=curve.getPoint(0);for(let i=1;i<=26;i++){const b=curve.getPoint(i/26),part=this.kit.box(g,(a.x+b.x)/2,.47,(a.z+b.z)/2,width,.055,a.distanceTo(b)+.12,'#c9c0ab');part.rotation.y=Math.atan2(b.x-a.x,b.z-a.z);this.drum(g,b.x,.47,b.z,width/2,.055,'#c9c0ab');a=b;}}
   private fountain(g:THREE.Object3D,x:number,z:number,r:number){
     this.drum(g,x,.45,z,r,.35,'#929d9e');this.drum(g,x,.79,z,r*.88,.055,'#6f9698');this.hoop(g,x,.82,z,r,'#c8c9bf');this.drum(g,x,.82,z,.24,.65,'#c8c9bf');this.hoop(g,x,1.42,z,.42,'#c8c9bf');
@@ -40,12 +53,19 @@ export class PlaceVisuals{
     this.motions.push(t=>drops.children.forEach((m,i)=>{const q=(t*.7+i/12)%1,a=i*Math.PI/3;m.position.set(Math.cos(a)*q*r*.72,1.25+Math.sin(q*Math.PI)*1.03-q*.4,Math.sin(a)*q*r*.72);}));
   }
   private fan(x:number,y:number,z:number){if(this.motions.length>=96)return;const g=new THREE.Group();g.position.set(x,y,z);this.sources.add(g);for(let i=0;i<4;i++){const blade=this.round(g,0,0,.23,.18,.045,.55,'#425563');blade.rotation.y=i*Math.PI/2;blade.position.set(Math.sin(i*Math.PI/2)*.23,0,Math.cos(i*Math.PI/2)*.23);}this.motions.push(t=>g.rotation.y=t*2.3);}
-  beginRebuild(){this.sources.clear();this.motions=[];this.batch.dispose();this.lastTime=undefined;}
+  beginRebuild(){this.sources.clear();this.motions=[];this.matches=[];this.batch.dispose();this.lastTime=undefined;}
   get dynamicCount(){return this.sources.children.length;}
+  personView(activity:LeisureActivity,index=0){
+    const figures:THREE.Object3D[]=[];this.sources.traverse(o=>{if(o.name==='leisure-person-'+activity)figures.push(o);});
+    const figure=figures[index%figures.length];if(!figure)return;
+    figure.updateWorldMatrix(true,false);
+    return figure.localToWorld(new THREE.Vector3(0,1.05,0));
+  }
+  soccerView(){const entry=this.matches[0];if(!entry)return;const {match,x,z}=entry;return {ball:new THREE.Vector3(x+match.ball.x,.56+match.ball.y,z+match.ball.z),score:[...match.score],event:match.event,owner:match.ball.owner,actions:match.players.map(p=>p.action)};}
   orientDynamics(first:number,x:number,z:number,angle:number){for(const g of this.sources.children.slice(first)){const dx=g.position.x-x,dz=g.position.z-z;g.position.x=x+dx*Math.cos(angle)+dz*Math.sin(angle);g.position.z=z-dx*Math.sin(angle)+dz*Math.cos(angle);}}
   endRebuild(){this.batch.rebuild(this.sources);}
   update(time:number,reducedMotion=false){const clock=reducedMotion?0:time;if(clock===this.lastTime)return;this.lastTime=clock;for(const motion of this.motions)motion(clock);this.batch.update(this.sources);}
-  dispose(){this.batch.dispose();this.scene.remove(this.rendered);for(const geo of [this.rounded,this.sphere,this.cylinder,this.ring,this.crown,this.canopy,this.jet,this.barrel,this.slide,this.flower])geo.dispose();this.sources.clear();this.motions=[];}
+  dispose(){this.batch.dispose();this.scene.remove(this.rendered);for(const geo of [this.rounded,this.sphere,this.cylinder,this.ring,this.crown,this.canopy,this.jet,this.barrel,this.slide,this.flower])geo.dispose();this.people.dispose();this.poolWater.dispose();this.sources.clear();this.motions=[];}
 
   private palm(g:THREE.Object3D,x:number,z:number){
     this.rod(g,new THREE.Vector3(x,.4,z),new THREE.Vector3(x+.2,3.9,z),.12,'#927b68');
@@ -74,7 +94,7 @@ export class PlaceVisuals{
         b(g,x+2.22,1.55+f*2.1,z,.045,.06,5.7,'#425563');
       }
       b(g,x-1,height+.5,z,4.6,.16,6.1,'#c8c9bf');this.bed(g,x-2.8,z+3.1,.4);
-      if(resort){this.round(g,x+2.7,.46,z+.6,1.25,.16,3.4,'#c8c9bf');this.round(g,x+2.7,.63,z+.6,1.02,.025,3.15,'#6f9698');this.parasol(g,x+2.4,z-2.5);}
+      if(resort){this.pool(g,x+2.7,z+.6,1.02,3.15,.7);this.parasol(g,x+2.4,z-2.5);const guest=this.neighbor(c.x*53+c.z*97+4100,'sit',x+2.95,0,z-1.7,0,{ground:.53});guest.root.position.y=.68-.36*guest.root.scale.y;}
       else {this.bench(g,x+2.8,z,Math.PI/2);this.bed(g,x+2.9,z-2.6,.5);}
       this.palm(g,x-2.3,z-2.3);
     }
@@ -82,8 +102,9 @@ export class PlaceVisuals{
   waterpark(c:Cell,g:THREE.Group){
     const x=c.x*8+8,z=c.z*8+4,b=this.kit.box;
     this.round(g,x,.35,z,23.5,.18,15.5,'#c9c0ab');
-    this.round(g,x+1,.55,z,12,.25,9,'#c8c9bf');this.round(g,x+1,.81,z,11.5,.04,8.5,'#6f9698');
-    this.drum(g,x-7,.55,z+4,2.2,.2,'#c8c9bf');this.drum(g,x-7,.76,z+4,1.95,.05,'#6f9698');
+    this.pool(g,x+1,z,11.5,8.5);
+    this.drum(g,x-7,.55,z+4,2.2,.06,'#b3d1cf');this.hoop(g,x-7,.79,z+4,2.08,'#c8c9bf');const shallow=this.drum(g,x-7,.79,z+4,1.95,.02,'#6f9698');shallow.material=this.poolWater;shallow.castShadow=false;
+    for(const side of [-1,1])this.neighbor(c.x*53+c.z*97+2200+side,'wade',x-7+side*.55,.61,z+4,side*.6,{child:true});
     for(const dz of [-5,0,5])this.parasol(g,x+9,z+dz);
     for(const dx of [-9,-7])for(const dz of [-5,-3])this.drum(g,x+dx,.5,z+dz,.09,4,'#425563');
     b(g,x-8,4.5,z-4,2.5,.18,2.5,'#927b68');
@@ -91,7 +112,12 @@ export class PlaceVisuals{
     for(let i=0;i<10;i++)b(g,x-9,.6+i*.38,z-5.6+i*.22,1,.1,.28,'#c8c9bf');
     for(const dx of [-10,10])for(const dz of [-6.5,6.5])this.palm(g,x+dx,z+dz);
     this.bench(g,x,z+6);this.bench(g,x+4,z+6);this.fountain(g,x-3,z-6,1);
-    for(let i=0;i<5;i++){const swimmer=new THREE.Group();this.sources.add(swimmer);this.part(swimmer,this.sphere,0,.94,0,.17,.19,.17,'#b18467');this.part(swimmer,this.sphere,0,.84,.35,.22,.09,.4,i%2?'#a65f4b':'#477e99');this.motions.push(t=>{swimmer.position.set(x-2+i*1.6,0,z+Math.sin(t*.22+i)*2.6);swimmer.rotation.y=Math.cos(t*.22+i)>0?0:Math.PI;});}
+    for(let i=0;i<4;i++){
+      const swimmer=this.neighbor(c.x*53+c.z*97+2000+i,'swim',0,.85,0);
+      // Separate elongated lap loops leave room for the whole body at the ends.
+      this.motions.push(t=>{const a=t*.27+i*1.3;swimmer.root.position.set(x-2.7+i*2.4+Math.cos(a)*.35,.85,z+Math.sin(a)*2.7);swimmer.root.rotation.y=Math.atan2(-Math.sin(a)*.35,Math.cos(a)*2.7);});
+    }
+    const guest=this.neighbor(c.x*53+c.z*97+2100,'sit',x+9.55,0,z+.8,0,{ground:.53});guest.root.position.y=.68-.36*guest.root.scale.y;
   }
 
   park(c:Cell,g:THREE.Group){
@@ -100,18 +126,34 @@ export class PlaceVisuals{
     if(sports){
       // Keep the marked pitch; replace the toy-like surroundings with nets and seating.
       for(const side of [-1,1]){for(let dz=-1.6;dz<=1.6;dz+=.32)this.rod(g,new THREE.Vector3(x+side*10.7,.55,z+dz),new THREE.Vector3(x+side*11.5,2.45,z+dz),.012,'#d9d6c7');for(let y=.65;y<2.5;y+=.3)this.rod(g,new THREE.Vector3(x+side*11.5,y,z-1.6),new THREE.Vector3(x+side*11.5,y,z+1.6),.012,'#d9d6c7');}
-      for(const dx of [-5,0,5])this.bench(g,x+dx,z+6.7);
-      for(let i=0;i<6;i++){const runner=new THREE.Group();this.sources.add(runner);this.part(runner,this.sphere,0,1.1,0,.19,.32,.13,i%2?'#a65f4b':'#477e99');this.part(runner,this.sphere,0,1.58,0,.13,.16,.13,'#b18467');const legs=[-1,1].map(side=>this.round(runner,side*.1,.43,0,.11,.45,.12,'#425563'));this.motions.push(t=>{const a=t*.22+i*Math.PI/3;runner.position.set(x+Math.sin(a)*7,0,z+Math.cos(a)*3);runner.rotation.y=Math.atan2(Math.cos(a)*7,-Math.sin(a)*3);legs.forEach((leg,j)=>leg.rotation.x=Math.sin(t*5+j*Math.PI)*.4);});}
+      for(const dx of [-5,0,5])this.bench(g,x+dx,z+6.7,Math.PI,.56);
+      const players=Array.from({length:6},(_,i)=>this.neighbor(c.x*53+c.z*97+1000+i,'run',0,.56,0,0,{shirt:i<3?'#b04d3f':'#357993'}));
+      const match=new SoccerMatch();this.matches.push({match,x,z});
+      const ball=new THREE.Group();this.sources.add(ball);this.part(ball,this.sphere,0,0,0,.073,.073,.073,'#ede7d9');for(let i=0;i<6;i++){const a=i*Math.PI/3;this.part(ball,this.sphere,Math.sin(a)*.059,.037,Math.cos(a)*.059,.021,.013,.021,'#384440');}
+      this.motions.push(t=>{
+        match.update(t);players.forEach((person,i)=>{const p=match.players[i];person.root.position.set(x+p.x,.56,z+p.z);person.root.rotation.y=p.heading;
+          person.pose(t,{distance:p.walked,speed:Math.hypot(p.vx,p.vz)*1.5,soccer:{kick:p.kick,touch:p.touch,receive:p.receive,look:p.look,celebrate:p.action==='celebrate'}});
+        });
+        ball.position.set(x+match.ball.x,.56+match.ball.y,z+match.ball.z);ball.rotation.set(match.ball.roll,0,-match.ball.roll*.7);
+      });
+      for(const [i,dx]of [-5,5].entries()){const spectator=this.neighbor(c.x*53+c.z*97+1100+i,'sit',x+dx,0,z+6.7,Math.PI,{ground:.56});spectator.root.position.y=.84-.36*spectator.root.scale.y;}
       return;
     }
     b(g,x,.33,z,size,.10,size,'#90b476');
     if(play){
       this.drum(g,x-1,.46,z-1,4.2,.06,'#bd9870');this.drum(g,x-1,.53,z-1,3.8,.035,'#c9c0ab');
-      for(const side of [-1,1]){this.rod(g,new THREE.Vector3(x+side*2.8,.5,z-3),new THREE.Vector3(x+side*2.8,3.6,z-1),.09,'#425563');this.rod(g,new THREE.Vector3(x+side*2.8,.5,z+1),new THREE.Vector3(x+side*2.8,3.6,z-1),.09,'#425563');}
-      this.rod(g,new THREE.Vector3(x-2.9,3.6,z-1),new THREE.Vector3(x+2.9,3.6,z-1),.1,'#425563');
-      for(const side of [-1,1]){const swing=new THREE.Group();swing.position.set(x+side*1.25,3.5,z-1);for(const dx of [-.45,.45])this.rod(swing,new THREE.Vector3(dx,0,0),new THREE.Vector3(dx,-2.4,0),.016,'#929d9e');this.round(swing,0,-2.5,0,1.05,.11,.5,'#927b68');this.part(swing,this.sphere,0,-2.1,0,.17,.28,.14,side===1?'#a65f4b':'#477e99');this.part(swing,this.sphere,0,-1.7,0,.12,.15,.12,'#b18467');for(const dx of [-.1,.1])this.round(swing,dx,-2.65,.18,.1,.3,.13,'#425563');this.sources.add(swing);this.motions.push(t=>swing.rotation.x=Math.sin(t*1.8+side)*.22);}
+      for(const side of [-1,1]){this.rod(g,new THREE.Vector3(x+side*2.8,.5,z-2),new THREE.Vector3(x+side*2.8,2.4,z-1),.06,'#425563');this.rod(g,new THREE.Vector3(x+side*2.8,.5,z),new THREE.Vector3(x+side*2.8,2.4,z-1),.06,'#425563');}
+      this.rod(g,new THREE.Vector3(x-2.9,2.4,z-1),new THREE.Vector3(x+2.9,2.4,z-1),.065,'#425563');
+      for(const side of [-1,1]){
+        const swing=new THREE.Group();swing.position.set(x+side*1.25,2.3,z-1);
+        const rider=this.people.create(c.x*53+c.z*97+3000+side,'swing',{child:true});
+        const grip=.35*rider.root.scale.x;for(const dx of [-grip,grip])this.rod(swing,new THREE.Vector3(dx,0,0),new THREE.Vector3(dx,-1.65,0),.009,'#929d9e');
+        this.round(swing,0,-1.65,0,.52,.06,.3,'#927b68');rider.root.position.y=-1.59-.36*rider.root.scale.y;swing.add(rider.root);this.sources.add(swing);
+        this.motions.push(t=>{swing.rotation.x=Math.sin(t*1.8+side)*.22;rider.pose(t);});
+      }
       for(const dx of [3.5,4.5])for(const dz of [-2.7,-1.7])this.drum(g,x+dx,.4,z+dz,.065,2.25,'#927b68');this.round(g,x+4,2.6,z-2.2,1.45,.12,1.45,'#927b68');this.part(g,this.canopy,x+4,3.9,z-2.2,1,.9,1,'#a65f4b');for(const dx of [3.5,4.5])this.drum(g,x+dx,2.7,z-2.7,.045,1.1,'#927b68');this.part(g,this.slide,x+4,0,z-1.8,1,1,1,'#929d9e');for(let i=0;i<6;i++)b(g,x+3.5,.5+i*.35,z-2.5,.85,.06,.14,'#927b68');
-      this.path(g,[new THREE.Vector3(x-6,.49,z+5),new THREE.Vector3(x,.49,z+4),new THREE.Vector3(x+5,.49,z+5)],1.2);this.bench(g,x-3,z+5.4);this.bench(g,x+3,z+5.4);this.bed(g,x+5,z-4,1.05);this.kit.tree(g,x-5,z-4,1.35);this.kit.tree(g,x+5,z+2,1.1);return;
+      this.path(g,[new THREE.Vector3(x-6,.49,z+5),new THREE.Vector3(x,.49,z+4),new THREE.Vector3(x+5,.49,z+5)],1.2);this.bench(g,x-3,z+5.4,Math.PI,.525);this.bench(g,x+3,z+5.4,Math.PI,.525);this.bed(g,x+5,z-4,1.05);this.kit.tree(g,x-5,z-4,1.35);this.kit.tree(g,x+5,z+2,1.1);
+      const parent=this.neighbor(c.x*53+c.z*97+3100,'sit',x-3,0,z+5.4,Math.PI,{ground:.525});parent.root.position.y=.805-.36*parent.root.scale.y;return;
     }
     const r=large?2.1:1.05;
     this.path(g,[new THREE.Vector3(x-size/2,.48,z+1),new THREE.Vector3(x-2,.48,z-2),new THREE.Vector3(x+2,.48,z-2.5),new THREE.Vector3(x+size/2,.48,z-1)],large?1.5:.9);
@@ -120,7 +162,13 @@ export class PlaceVisuals{
     const locations=large?[[-7,-7],[6,-6],[-8,5],[7,7],[-3,8],[8,1]]:[[-2.3,-2.3],[2.5,2.4]];
     for(const [dx,dz]of locations){this.kit.tree(g,x+dx,z+dz,large?1.4+Math.abs(dx)%3*.15:.65);this.bed(g,x+dx,z+dz,large?1.2:.45,false);}
     if(large)for(let i=0;i<18;i++){const a=i*2.4,dx=-6+Math.sin(a)*(1+i%3*.5),dz=6+Math.cos(a)*(1+i%4*.35);this.shrub(g,x+dx,z+dz,.25+(i%3)*.1);}
-    this.bench(g,x+(large?3:0),z+(large?4:2.4));if(large){this.bench(g,x-5,z+2,Math.PI/2);this.bench(g,x+4,z-4,Math.PI);for(const dx of [-8,8]){this.drum(g,x+dx,.4,z-1,.08,2.5,'#425563');this.part(g,this.sphere,x+dx,3,z-1,.18,.24,.18,'#fff0b0');}}
+    this.bench(g,x+(large?3:0),z+(large?4:2.4),0,large?.525:.43);if(large){this.bench(g,x-5,z+2,Math.PI/2);this.bench(g,x+4,z-4,Math.PI);}
+    const sitter=this.neighbor(c.x*53+c.z*97+4000,'sit',x+(large?3:0),0,z+(large?4:2.4),0,{ground:large?.525:.43});sitter.root.position.y=(large?.805:.71)-.36*sitter.root.scale.y;
+    if(large){
+      const walker=this.neighbor(c.x*53+c.z*97+4001,'walk',0,.525,0),route=new THREE.CatmullRomCurve3([new THREE.Vector3(x-size/2,.525,z+1),new THREE.Vector3(x-2,.525,z-2),new THREE.Vector3(x+2,.525,z-2.5),new THREE.Vector3(x+size/2,.525,z-1)]);
+      const length=route.getLength();
+      this.motions.push(t=>{const cycle=t*.065,u=(1-Math.cos(cycle))/2,point=route.getPointAt(u),tangent=route.getTangentAt(u),half=Math.floor(cycle/Math.PI),distance=(half+(half%2?1-u:u))*length,speed=Math.abs(Math.sin(cycle))*.0325*length;walker.root.position.copy(point);walker.root.rotation.y=Math.atan2(tangent.x,tangent.z)+(1+Math.tanh(-Math.sin(cycle)/.08))*Math.PI/2;walker.pose(t,{distance,speed:speed*1.5});});
+    }
   }
 
   architecture(c:Cell,g:THREE.Group,height:number){

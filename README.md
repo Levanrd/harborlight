@@ -1,6 +1,6 @@
 # Harborlight — A Brighter City
 
-A local browser city builder using React, TypeScript, Three.js, Vite, and Zustand. All 3D models are procedural. Hosting is on hold while gameplay is developed.
+A local browser city builder using React, TypeScript, Three.js, Vite, and Zustand. City models are procedural; people use a locally bundled anatomical head mesh with attribution. Hosting is on hold while gameplay is developed.
 
 ## Run
 
@@ -447,3 +447,46 @@ To reproduce the checks locally, run `npm ci` followed by the three commands abo
 The existing large-bundle warning is advisory. CI does not deploy the game.
 Branch protection is separate: configure these check names as required in GitHub
 if merges should be blocked until they pass.
+
+### People in recreation areas — October 20
+
+Soccer players, swimmers and swing riders now use articulated human figures with shaped torsos, faces, hair, hands and connected limbs at the existing human scale. Team shirts, shorts, socks and boots distinguish the soccer players; a correctly sized ball passes across the field. Swimmers wear swimwear and follow separate lap loops with alternating arm strokes and kicks. Recessed pool floors and translucent water show the submerged bodies. The shallow pool has child visitors.
+
+Children sit on scaled swings with their hands on the chains. Seated visitors occupy park, playground, sports and resort seating; a large-park visitor follows the garden path. Elbows and knees preserve limb lengths through poses. All activity figures use shared geometry and instance batches, pause with the city and hold a fixed pose under reduced motion. These remain procedural game characters and representative leisure animations, rather than physical sports or swimming simulations. The local `/tools/recreation-preview.html` study provides close-up checks without accessing saved cities.
+
+### Natural character anatomy and movement — October 20
+
+Street pedestrians and recreation visitors now share an anatomical model with tapered upper arms, forearms, thighs and calves, shaped palms and fingers, fitted shoes, a ribcage and pelvis. The head is adapted from the licensed Lee Perry-Smith / Infinite-Realities scan, with locally fitted hair, skin colors, eye sockets and blinking. Credits and the CC BY 3.0 link are available in City menu → Character model credits and at `/asset-credits.html`. The head is cropped, rescaled and reduced into near and distant geometry; all assets are bundled locally.
+
+Walking uses lower foot clearance, opposing arm swing, shoulder/pelvis counter-rotation and restrained breathing. Jogging on the sports field and walking along park paths now drive gait from actual path distance; park visitors slow and turn at path ends. Limbs retain their lengths and seated feet meet the actual ground height. The fixed instance budget is sixteen crowd/door batches; character detail falls with distance. The faces share one scan base with deterministic colors and proportions, and activities remain procedural animations rather than captured human motion. `/tools/pedestrian-preview.html` provides a face study and a 270-person crowd view; `/tools/recreation-preview.html` shows the same anatomy in leisure activities.
+Verification: 193 serial tests, TypeScript and the production build passed. Browser checks covered the face study, active swimming and the 270-person crowd (16 scene draw calls including the preview ground and grid; approximately 63 FPS during this isolated check). This is not a full-city performance guarantee. The existing production bundle-size advisory remains.
+
+### Close camera inspection — October 20
+
+The city camera now permits a three-metre target distance with lower ground clearance for closer inspection of facilities. Repeated zoom-button presses accumulate their requested distance during camera animations. In Explore, double-click a surface to move closer and center it, including individual parts of the soccer field and airport. The recreation preview also has explicit zoom buttons, cursor-directed wheel zoom and double-click surface focus.
+
+### Continuous limbs and jogging — October 20
+
+Arms and legs now use continuous surfaces with two-bone skinning through elbows and knees. Rounded shoulders, anatomical limb taper, covered ankles and relaxed fingers replace the separate rigid limb pieces. Clothing colors travel with the skin; the shadow pass uses the same deformation. Street crowds retain fixed instance batches, with fourteen geometry/door batches independent of crowd size.
+
+Soccer players have a distinct distance-driven jog, with shorter stance, heel recovery, foot roll, torso lean, shoulder counter-rotation and opposing bent-arm swing. Hands face inward and the head counters torso motion. Walking, seated and swimming poses share the new limb surfaces. These remain procedural game characters and animations; this does not add motion capture, cloth simulation or match AI.
+
+The recreation preview's People close-up follows a selected soccer player. Next player cycles through the six players; Slow motion runs at 35% speed. The same models and poses render in the main city.
+
+Verification: 196 serial tests passed; the affected character, scale and parcel tests passed again after the final shape and wrist refinements. TypeScript and the production build pass. Browser checks covered soccer player follow, next-player selection, slow motion, pause, swimming and the 270-person street crowd, with no rendering errors reported in either preview. The existing bundle-size advisory remains.
+
+### Autonomous soccer — October 20
+
+Sports fields now run a small 3-v-3 match, with two outfield players and a goalkeeper on each side. Carriers dribble and pass under pressure; teammates run into space, defenders press or mark, and keepers cover the goal. Free balls can be received, intercepted or won in a tackle. Players wind up and swing through passes and shots, turn toward their target, track the ball with their head and react to receiving it. The ball rolls, bounces and scores across the goal line, followed by a short return to kick-off.
+
+Match updates use a fixed 60 Hz visual clock independent of render rate and freeze when the city is paused. Matches are local visual activity rather than persisted league or city-economy state. The preview adds Follow ball and a score/event line alongside player follow, slow motion and pause. This is simplified small-sided play, without full football rules, referee or human player controls.
+
+Verification: all 199 serial tests, TypeScript and the production build pass. Tests cover frame-rate-independent decisions, pause/reset, controlled-ball reach, field bounds, passes, receptions, turnovers, shots, saves, goals and boot contact at release. Browser checks confirmed live play and a scored goal, ball-follow, slow motion and pause without reported rendering errors. The existing bundle-size advisory remains.
+
+### Lighting throughout the city — October 20
+
+Every building and facility type now has dedicated exterior lighting. Homes, shops and civic buildings get forecourt lanterns; industry, utilities and service yards get floodlights. Parks have path lanterns and bollards, playgrounds have perimeter lamps, sports fields have four floodlight towers, and pools/resorts have deck and underwater lighting. Airport apron floodlights and forecourt lamps complement the existing runway lights, with blue taxiway markers added. Ports have yard floodlights and railway platforms have downlights. Road corners, dead ends and isolated tiles now receive street lamps too.
+
+Fixture housings are instanced, light pools remain visible across the city, and nearby illumination shares the existing street-light budget: zero/two/four/six real spotlights at Low/Medium/High/Ultra. Bulbs and light pools fade with the existing day/night cycle, including while the simulation is paused. This adds visual fixtures without changing construction costs, utility accounting or saves. The recreation preview includes a Night lights toggle.
+
+Verification: all 203 serial tests and the production build pass. Lighting tests cover every building type, footprint roots, physical parcel clearance, pitch/pool/runway clearance, day/night fading and fixed batching cost. The lighting tests passed again after final park and yard placement adjustments. Browser checks covered the full city, coast, airport, soccer field, pools, playground, park and resort at night without reported rendering errors. The existing bundle-size advisory remains.

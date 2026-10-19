@@ -16,3 +16,8 @@ test('lamp and signal posts stay in their sidewalk parcels for every road connec
     for(const s of signals){assert.ok(links[s.dx<0?0:s.dx>0?1:s.dz<0?2:3]);}
   }
 });
+
+test('dead ends, corners and isolated road tiles also receive a lamp',()=>{
+  const c:Cell={x:1,z:0,kind:'road',age:3,level:1,occupancy:0};
+  for(const links of [[false,false,false,false],[true,false,false,false],[true,false,false,true],[false,true,true,false]])assert.equal(streetLampSites(c,links).length,1);
+});

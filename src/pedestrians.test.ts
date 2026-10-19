@@ -33,7 +33,7 @@ test('road demolition invalidates walking routes and removes stale crossing rese
 });
 test('pedestrian and entrance rendering uses bounded instance buffers and releases resources',()=>{
   const c=neighborhood(),scene=new THREE.Scene(),models=new PedestrianModels(scene);let foot=emptyFootTraffic(),traffic=emptyTraffic();for(let i=0;i<100;i++){traffic.time=i*.1;foot=advancePedestrians(c,foot,traffic,.1);}models.update(c,foot,traffic,.016,false);
-  assert.equal(scene.children.length,5);assert.ok(scene.children.some(o=>o instanceof THREE.InstancedMesh&&o.count>0));
+  assert.ok(scene.children.length<=16,'crowd and doors use a bounded number of anatomical batches');assert.ok(scene.children.some(o=>o instanceof THREE.InstancedMesh&&o.count>0));
   for(const o of scene.children){const mesh=o as THREE.InstancedMesh;assert.ok(mesh.count<=mesh.instanceMatrix.count);for(const n of mesh.instanceMatrix.array)assert.ok(Number.isFinite(n));}
   // The first residential doorway opens for a nearby actor, then closes again.
   const entry=walkingGraph(c).entrances.get('1,1')!,p=foot.agents[0];p.home='1,1';p.stage='walking';p.x=entry.outside.x;p.z=entry.outside.z;

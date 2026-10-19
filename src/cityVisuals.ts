@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {prepareHumanLimb,writeHumanLimb,uploadHumanLimb,disposeHumanLimb} from './humanSkinning';
 import type {Cell} from './simulation';
 import {buildingVariant,hasFamilyModel} from './buildingFamilies';
 import {drawFamilyModel} from './familyModels';
@@ -183,7 +184,7 @@ export function disposeBatches(parent:THREE.Group){parent.traverse(o=>{if(o inst
 export class VehicleBatches{
   private batches:{mesh:THREE.InstancedMesh;sources:THREE.Mesh[]}[]=[];
   constructor(private target:THREE.Group){}
-  rebuild(sources:THREE.Group){this.dispose();const groups=new Map<string,THREE.Mesh[]>();sources.traverse(o=>{if(o instanceof THREE.Mesh){const k=o.geometry.uuid+':'+(o.material as THREE.Material).uuid,list=groups.get(k)||[];list.push(o);groups.set(k,list);}});for(const list of groups.values()){const mesh=new THREE.InstancedMesh(list[0].geometry,list[0].material,list.length);mesh.castShadow=list[0].castShadow;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.target.add(mesh);this.batches.push({mesh,sources:list});}}
-  update(sources:THREE.Group){sources.updateMatrixWorld(true);const hidden=new THREE.Matrix4().makeScale(0,0,0);for(const b of this.batches){b.sources.forEach((s,i)=>b.mesh.setMatrixAt(i,s.visible?s.matrixWorld:hidden));b.mesh.instanceMatrix.needsUpdate=true;}}
-  dispose(){for(const b of this.batches){this.target.remove(b.mesh);b.mesh.dispose();}this.batches=[];}
+  rebuild(sources:THREE.Group){this.dispose();const groups=new Map<string,THREE.Mesh[]>();sources.traverse(o=>{if(o instanceof THREE.Mesh){const k=o.geometry.uuid+':'+(o.material as THREE.Material).uuid,list=groups.get(k)||[];list.push(o);groups.set(k,list);}});for(const list of groups.values()){const mesh=new THREE.InstancedMesh(list[0].geometry,list[0].material,list.length);prepareHumanLimb(mesh);mesh.castShadow=list[0].castShadow;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.target.add(mesh);this.batches.push({mesh,sources:list});}}
+  update(sources:THREE.Group){sources.updateMatrixWorld(true);const hidden=new THREE.Matrix4().makeScale(0,0,0);for(const b of this.batches){b.sources.forEach((s,i)=>{b.mesh.setMatrixAt(i,s.visible?s.matrixWorld:hidden);writeHumanLimb(b.mesh,i,s);});b.mesh.instanceMatrix.needsUpdate=true;if(b.mesh.instanceColor)b.mesh.instanceColor.needsUpdate=true;uploadHumanLimb(b.mesh);}}
+  dispose(){for(const b of this.batches){this.target.remove(b.mesh);disposeHumanLimb(b.mesh);b.mesh.dispose();}this.batches=[];}
 }
